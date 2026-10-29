@@ -4,6 +4,7 @@ import com.example.orderservice.dtos.OrderRequestDTO;
 import com.example.orderservice.dtos.OrderResponseDTO;
 import com.example.orderservice.entities.OrderStatus;
 import com.example.orderservice.services.IOrderService;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -38,7 +39,7 @@ public class OrderController {
 
     // 3. POST /orders - Create a new order
     @PostMapping
-    public ResponseEntity<OrderResponseDTO> createOrder(@RequestBody OrderRequestDTO requestDTO) {
+    public ResponseEntity<OrderResponseDTO> createOrder(@Valid @RequestBody OrderRequestDTO requestDTO) {
         OrderResponseDTO createdOrder = orderService.createOrder(requestDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdOrder);
     }

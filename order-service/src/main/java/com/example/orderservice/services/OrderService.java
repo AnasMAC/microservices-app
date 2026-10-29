@@ -77,13 +77,6 @@ public class OrderService implements IOrderService {
     @Override
     @Transactional
     public OrderResponseDTO createOrder(OrderRequestDTO orderRequestDTO) {
-        if (orderRequestDTO == null || orderRequestDTO.customerId() == null) {
-            throw new RuntimeException("Customer ID is required");
-        }
-        if (orderRequestDTO.productItems() == null || orderRequestDTO.productItems().isEmpty()) {
-            throw new RuntimeException("Order must contain at least one product item");
-        }
-
         Customer customer = customerService.findById(orderRequestDTO.customerId())
                 .orElseThrow(() -> new RuntimeException("Customer not found with id: " + orderRequestDTO.customerId()));
 
