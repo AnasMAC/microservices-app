@@ -13,6 +13,7 @@ import java.util.Date;
 import java.util.List;
 
 @Entity
+@Table(name = "orders")
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
@@ -27,6 +28,6 @@ public class Order {
     private Long customerId;
     @Transient
     private Customer customer;
-    @OneToMany(mappedBy = "order")
+    @OneToMany(mappedBy = "order",cascade = CascadeType.ALL,orphanRemoval = true)
     private List<ProductItem> productItems;
 }
