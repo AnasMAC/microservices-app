@@ -5,6 +5,9 @@ import com.example.orderservice.dtos.OrderResponseDTO;
 import com.example.orderservice.entities.Order;
 import com.example.orderservice.entities.OrderStatus;
 import com.example.orderservice.entities.ProductItem;
+import com.example.orderservice.exceptions.InvalidOrderStateException;
+import com.example.orderservice.exceptions.OrderNotFoundException;
+import com.example.orderservice.exceptions.ResourceNotFoundException;
 import com.example.orderservice.modele.Customer;
 import com.example.orderservice.modele.Product;
 import com.example.orderservice.repositories.OrderRepository;
@@ -44,11 +47,11 @@ public class OrderService implements IOrderService {
         return orderRepository.findAll(orderPage).map(
                 order -> {
                     order.setCustomer(customerService.findById(order.getCustomerId())
-                            .orElseThrow(() -> new RuntimeException("Customer not found with id: " + order.getCustomerId())));
+                            .orElseThrow(() -> new ResourceNotFoundException("Customer not found with id: " + order.getCustomerId())));
                     if (order.getProductItems() != null) {
                         order.getProductItems().forEach(productItem -> {
                             productItem.setProduct(inventoryService.getProduct(productItem.getProductId())
-                                    .orElseThrow(() -> new RuntimeException("Product not found with id: " + productItem.getProductId())));
+                                    .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + productItem.getProductId())));
                         });
                     }
                     return orderMapper.toDTO(order);
@@ -59,15 +62,15 @@ public class OrderService implements IOrderService {
     @Override
     public OrderResponseDTO getOrderById(Long id) {
         Order order = orderRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Order not found with id: " + id));
+                .orElseThrow(() -> new OrderNotFoundException(id));
 
         order.setCustomer(customerService.findById(order.getCustomerId())
-                .orElseThrow(() -> new RuntimeException("Customer not found with id: " + order.getCustomerId())));
+                .orElseThrow(() -> new ResourceNotFoundException("Customer not found with id: " + order.getCustomerId())));
 
         if (order.getProductItems() != null) {
             order.getProductItems().forEach(productItem -> {
                 productItem.setProduct(inventoryService.getProduct(productItem.getProductId())
-                        .orElseThrow(() -> new RuntimeException("Product not found with id: " + productItem.getProductId())));
+                        .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + productItem.getProductId())));
             });
         }
 
@@ -78,12 +81,12 @@ public class OrderService implements IOrderService {
     @Transactional
     public OrderResponseDTO createOrder(OrderRequestDTO orderRequestDTO) {
         Customer customer = customerService.findById(orderRequestDTO.customerId())
-                .orElseThrow(() -> new RuntimeException("Customer not found with id: " + orderRequestDTO.customerId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Customer not found with id: " + orderRequestDTO.customerId()));
 
         Order order = orderMapper.toEntity(orderRequestDTO);
         order.getProductItems().forEach(productItem -> {
             Product product = inventoryService.getProduct(productItem.getProductId())
-                    .orElseThrow(() -> new RuntimeException("Product not found with id: " + productItem.getProductId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + productItem.getProductId()));
             productItem.setProduct(product);
             productItem.setPrice(product.getPrice() * productItem.getQuantity());
         });
@@ -98,7 +101,7 @@ public class OrderService implements IOrderService {
     @Transactional
     public OrderResponseDTO updateOrder(Long id) {
         Order oldOrder = orderRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Order not found with id: " + id));
+                .orElseThrow(() -> new OrderNotFoundException(id));
 
         switch (oldOrder.getOrderStatus()) {
             case CREATED:
@@ -108,19 +111,19 @@ public class OrderService implements IOrderService {
                 oldOrder.setOrderStatus(OrderStatus.DELIVERED);
                 break;
             case DELIVERED:
-                throw new RuntimeException("the order " + oldOrder.getId() + " was delivered");
+                throw new InvalidOrderStateException("The order " + oldOrder.getId() + " was delivered");
             case CANCELED:
-                throw new RuntimeException("the order " + oldOrder.getId() + " was canceled");
+                throw new InvalidOrderStateException("The order " + oldOrder.getId() + " was canceled");
         }
 
         Customer customer = customerService.findById(oldOrder.getCustomerId())
-                .orElseThrow(() -> new RuntimeException("Customer not found with id: " + oldOrder.getCustomerId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Customer not found with id: " + oldOrder.getCustomerId()));
         oldOrder.setCustomer(customer);
 
         if (oldOrder.getProductItems() != null) {
             oldOrder.getProductItems().forEach(productItem -> {
                 Product product = inventoryService.getProduct(productItem.getProductId())
-                        .orElseThrow(() -> new RuntimeException("Product not found with id: " + productItem.getProductId()));
+                        .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + productItem.getProductId()));
                 productItem.setProduct(product);
                 productItem.setPrice(product.getPrice() * productItem.getQuantity());
             });
@@ -133,10 +136,10 @@ public class OrderService implements IOrderService {
     @Transactional
     public void deleteOrder(Long id) {
         Order oldOrder = orderRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Order not found with id: " + id));
+                .orElseThrow(() -> new OrderNotFoundException(id));
 
         if (oldOrder.getOrderStatus() == OrderStatus.DELIVERED) {
-            throw new RuntimeException("you can't cancel an order already delivered");
+            throw new InvalidOrderStateException("You can't cancel an order already delivered");
         }
 
         oldOrder.setOrderStatus(OrderStatus.CANCELED);
