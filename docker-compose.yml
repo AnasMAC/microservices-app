@@ -1,4 +1,58 @@
+x-postgres-base: &postgres-base
+  image: postgres:16-alpine
+  restart: on-failure
+  environment:
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: postgres
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U postgres"]
+    interval: 5s
+    timeout: 3s
+    retries: 10
+
 services:
+  # ─── Databases (Database-per-Service) ─────────────────────────────────
+  customer-db:
+    <<: *postgres-base
+    container_name: customer-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: customer_db
+    volumes:
+      - customer-db-data:/var/lib/postgresql/data
+
+  inventory-db:
+    <<: *postgres-base
+    container_name: inventory-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: inventory_db
+    volumes:
+      - inventory-db-data:/var/lib/postgresql/data
+
+  order-db:
+    <<: *postgres-base
+    container_name: order-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: order_db
+    volumes:
+      - order-db-data:/var/lib/postgresql/data
+
+  keycloak-db:
+    <<: *postgres-base
+    container_name: keycloak-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: keycloak_db
+    volumes:
+      - keycloak-db-data:/var/lib/postgresql/data
+
+  # ─── Core Infrastructure ──────────────────────────────────────────────
   keycloak:
     image: quay.io/keycloak/keycloak:26.0.5
     container_name: keycloak
@@ -6,7 +60,133 @@ services:
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak_db
+      KC_DB_USERNAME: postgres
+      KC_DB_PASSWORD: postgres
+      KC_HOSTNAME: "keycloak"
+      KC_HOSTNAME_PORT: "8080"
+      KC_HOSTNAME_STRICT: "false"
     ports:
       - "8080:8080"
     volumes:
       - ./config-repo/keycloak-config.json:/opt/keycloak/data/import/realm-export.json:ro,Z
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
+    restart: on-failure
+
+  discovery-service:
+    build: ./discovery-service
+    container_name: discovery-service
+    ports:
+      - "8761:8761"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8761/ || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 15s
+    restart: on-failure
+
+  config-service:
+    build: ./config-service
+    container_name: config-service
+    ports:
+      - "9999:9999"
+    volumes:
+      - ./config-repo:/app/config-repo:ro,Z
+    environment:
+      SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCH_LOCATIONS: "file:/app/config-repo/"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:9999/actuator/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 20s
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+    restart: on-failure
+
+  # ─── Business Microservices ───────────────────────────────────────────
+  customer-service:
+    build: ./customer-service
+    container_name: customer-service
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_CONFIG_IMPORT: "configserver:http://config-service:9999"
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: "http://discovery-service:8761/eureka/"
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: "http://keycloak:8080/realms/microservices-realm"
+    depends_on:
+      customer-db:
+        condition: service_healthy
+      config-service:
+        condition: service_healthy
+      discovery-service:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    restart: on-failure
+
+  inventory-service:
+    build: ./inventory-service
+    container_name: inventory-service
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_CONFIG_IMPORT: "configserver:http://config-service:9999"
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: "http://discovery-service:8761/eureka/"
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: "http://keycloak:8080/realms/microservices-realm"
+    depends_on:
+      inventory-db:
+        condition: service_healthy
+      config-service:
+        condition: service_healthy
+      discovery-service:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    restart: on-failure
+
+  order-service:
+    build: ./order-service
+    container_name: order-service
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_CONFIG_IMPORT: "configserver:http://config-service:9999"
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: "http://discovery-service:8761/eureka/"
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: "http://keycloak:8080/realms/microservices-realm"
+    depends_on:
+      order-db:
+        condition: service_healthy
+      config-service:
+        condition: service_healthy
+      discovery-service:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    restart: on-failure
+
+  gateway-service:
+    build: ./gateway-service
+    container_name: gateway-service
+    ports:
+      - "8888:8888"
+    environment:
+      SPRING_CONFIG_IMPORT: "configserver:http://config-service:9999"
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: "http://discovery-service:8761/eureka/"
+    depends_on:
+      config-service:
+        condition: service_healthy
+      discovery-service:
+        condition: service_healthy
+    restart: on-failure
+
+volumes:
+  customer-db-data:
+  inventory-db-data:
+  order-db-data:
+  keycloak-db-data:
