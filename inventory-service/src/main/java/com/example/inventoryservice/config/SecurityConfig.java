@@ -1,9 +1,9 @@
 package com.example.inventoryservice.config;
 
+import jakarta.ws.rs.HttpMethod;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.GrantedAuthority;
@@ -20,7 +20,6 @@ import java.util.stream.Collectors;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
     @Bean
@@ -28,8 +27,10 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/h2-console/**", "/actuator/**").permitAll()
-                .anyRequest().authenticated()
+                    .requestMatchers("/h2-console/**", "/actuator/**").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/**").hasAnyRole("USER", "ADMIN")
+                    .requestMatchers("/**").hasRole("ADMIN") 
+                    .anyRequest().authenticated()
             )
             .headers(headers -> headers.frameOptions(frame -> frame.disable()))
             .oauth2ResourceServer(oauth2 -> oauth2
