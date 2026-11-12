@@ -60,10 +60,18 @@ class CustomerRestApiTest {
         }
 
         @Test
-        @DisplayName("Should return 200 OK when valid JWT token is provided")
-        void authenticated_Returns200() throws Exception {
+        @DisplayName("Should return 403 Forbidden when regular USER accesses customers (Admin only)")
+        void userRole_Returns403() throws Exception {
             mockMvc.perform(get("/customers")
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_USER"))))
+                    .andExpect(status().isForbidden());
+        }
+
+        @Test
+        @DisplayName("Should return 200 OK when valid ADMIN token is provided")
+        void adminRole_Returns200() throws Exception {
+            mockMvc.perform(get("/customers")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$._embedded.customers", hasSize(2)));
         }
@@ -82,7 +90,7 @@ class CustomerRestApiTest {
             Customer invalid = new Customer(null, null, "valid@example.ma");
 
             mockMvc.perform(post("/customers")
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_USER")))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN")))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(invalid)))
                     .andExpect(status().isBadRequest())
@@ -95,7 +103,7 @@ class CustomerRestApiTest {
             Customer invalid = new Customer(null, "A", "valid@example.ma");
 
             mockMvc.perform(post("/customers")
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_USER")))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN")))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(invalid)))
                     .andExpect(status().isBadRequest())
@@ -108,7 +116,7 @@ class CustomerRestApiTest {
             Customer invalid = new Customer(null, "Amine", "not-a-valid-email");
 
             mockMvc.perform(post("/customers")
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_USER")))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN")))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(invalid)))
                     .andExpect(status().isBadRequest())
@@ -119,7 +127,7 @@ class CustomerRestApiTest {
         @DisplayName("Should return 400 when body is empty")
         void emptyBody_Returns400() throws Exception {
             mockMvc.perform(post("/customers")
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_USER")))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN")))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{}"))
                     .andExpect(status().isBadRequest());
@@ -134,12 +142,12 @@ class CustomerRestApiTest {
     class CrudTests {
 
         @Test
-        @DisplayName("Should create customer successfully (201 Created)")
+        @DisplayName("Should create customer successfully (201 Created) for ADMIN")
         void createValidCustomer_Returns201() throws Exception {
             Customer validCustomer = new Customer(null, "Karim Tazi", "karim.tazi@example.ma");
 
             mockMvc.perform(post("/customers")
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_USER")))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN")))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(validCustomer)))
                     .andExpect(status().isCreated())
@@ -147,12 +155,12 @@ class CustomerRestApiTest {
         }
 
         @Test
-        @DisplayName("Should retrieve customer with fullCustomer projection")
+        @DisplayName("Should retrieve customer with fullCustomer projection for ADMIN")
         void getCustomerWithProjection_Returns200() throws Exception {
             Customer saved = customerRepository.findAll().get(0);
 
             mockMvc.perform(get("/customers/" + saved.getId() + "?projection=fullCustomer")
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_USER"))))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.id", is(saved.getId().intValue())))
                     .andExpect(jsonPath("$.name", is(saved.getName())))

@@ -1,7 +1,6 @@
 package com.example.orderservice.entities;
 
 
-import com.example.orderservice.modele.Customer;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -9,7 +8,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
-import java.util.Date;
 import java.util.List;
 
 @Entity
@@ -26,8 +24,6 @@ public class Order {
     @Enumerated(EnumType.STRING)
     private OrderStatus orderStatus;
     private Long customerId;
-    @Transient
-    private Customer customer;
     @OneToMany(mappedBy = "order",cascade = CascadeType.ALL,orphanRemoval = true)
     private List<ProductItem> productItems;
 }

@@ -1,6 +1,6 @@
 package com.example.inventoryservice.config;
 
-import jakarta.ws.rs.HttpMethod;
+import org.springframework.http.HttpMethod;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
@@ -29,7 +29,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers("/h2-console/**", "/actuator/**").permitAll()
                     .requestMatchers(HttpMethod.GET, "/**").hasAnyRole("USER", "ADMIN")
-                    .requestMatchers("/**").hasRole("ADMIN") 
+                    .requestMatchers("/**").hasRole("ADMIN")
                     .anyRequest().authenticated()
             )
             .headers(headers -> headers.frameOptions(frame -> frame.disable()))

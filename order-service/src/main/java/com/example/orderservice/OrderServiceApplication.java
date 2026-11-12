@@ -1,22 +1,8 @@
 package com.example.orderservice;
 
-import com.example.orderservice.entities.Order;
-import com.example.orderservice.entities.OrderStatus;
-import com.example.orderservice.entities.ProductItem;
-import com.example.orderservice.modele.Product;
-import com.example.orderservice.repositories.OrderRepository;
-import com.example.orderservice.repositories.ProductItemRepository;
-import com.example.orderservice.services.CustomerService;
-import com.example.orderservice.services.InventoryService;
-import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.openfeign.EnableFeignClients;
-import org.springframework.context.annotation.Bean;
-
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.stream.Stream;
 
 @SpringBootApplication
 @EnableFeignClients

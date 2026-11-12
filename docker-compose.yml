@@ -185,6 +185,18 @@ services:
         condition: service_healthy
     restart: on-failure
 
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_GATEWAY_URL: "http://localhost:8888"
+      NEXT_PUBLIC_KEYCLOAK_URL: "http://localhost:8080"
+    depends_on:
+      - gateway-service
+    restart: on-failure
+
 volumes:
   customer-db-data:
   inventory-db-data:
