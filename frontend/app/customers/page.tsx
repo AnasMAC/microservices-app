@@ -3,20 +3,15 @@
 import React, { useState, useEffect } from 'react';
 import { Customer } from '../../lib/types';
 import { getCustomers, createCustomer } from '../../lib/api';
-import { useApp } from '../../context/AppContext';
-import { ShieldAlert, Users, Plus, RefreshCw, X, Mail, ShieldCheck, ArrowRight } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { ShieldAlert, Plus, RefreshCw, X, Mail, ShieldCheck, ArrowRight, LogIn, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 
-const FALLBACK_CUSTOMERS: Customer[] = [
-  { id: 1, name: 'Ensat Media', email: 'contact@ensat-media.ma' },
-  { id: 2, name: 'FSTM Tech', email: 'contact@fstm.ma' },
-  { id: 3, name: 'ENSAM Labs', email: 'contact@ensam.ma' },
-];
-
 export default function CustomersPage() {
-  const { activeUser, switchUser } = useApp();
+  const { isAuthenticated, user, login } = useAuth();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -25,22 +20,30 @@ export default function CustomersPage() {
   const [newEmail, setNewEmail] = useState('');
 
   const fetchCustomersList = async () => {
-    if (activeUser.role !== 'ADMIN') return;
+    if (!user?.isAdmin) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
+    setErrorMessage(null);
     try {
       const items = await getCustomers();
-      setCustomers(items.length > 0 ? items : FALLBACK_CUSTOMERS);
-    } catch (err) {
-      console.warn('Customer-service not reachable via Gateway, showing initial seeded records:', err);
-      setCustomers(FALLBACK_CUSTOMERS);
+      setCustomers(items || []);
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Failed to fetch customer records from Customer Service');
+      setCustomers([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchCustomersList();
-  }, [activeUser.role]);
+    if (user?.isAdmin) {
+      fetchCustomersList();
+    } else {
+      setLoading(false);
+    }
+  }, [user]);
 
   const handleCreateCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,41 +74,51 @@ export default function CustomersPage() {
   // -------------------------------------------------------------
   // Role Guard: Customers CANNOT see this page
   // -------------------------------------------------------------
-  if (activeUser.role !== 'ADMIN') {
+  if (!user?.isAdmin) {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-16 text-center">
-        <div className="bg-white rounded-3xl p-10 border border-amber-200 shadow-xl shadow-amber-50 space-y-5">
-          <div className="w-16 h-16 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center mx-auto">
-            <ShieldAlert className="w-8 h-8" />
+      <div className="max-w-2xl mx-auto px-4 py-20 text-center">
+        <div className="bg-white rounded-3xl p-10 border border-zinc-200 shadow-xl space-y-5">
+          <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-700 flex items-center justify-center mx-auto border border-amber-200">
+            <ShieldAlert className="w-7 h-7" />
           </div>
 
           <div>
-            <span className="text-xs font-bold tracking-widest text-amber-700 uppercase bg-amber-50 px-3 py-1 rounded-full border border-amber-200">
+            <span className="text-[11px] font-black tracking-widest text-amber-700 uppercase bg-amber-100/60 px-3 py-1 rounded-full border border-amber-200">
               403 Forbidden • Confidential Directory
             </span>
-            <h2 className="text-2xl font-black text-gray-900 mt-3">
+            <h2 className="text-2xl font-black text-zinc-900 tracking-tight mt-3">
               Administrator Access Required
             </h2>
-            <p className="text-sm text-gray-600 max-w-md mx-auto mt-2 leading-relaxed">
-              Customers cannot view or access records belonging to other customers. This section is restricted exclusively to users holding the <span className="font-semibold text-gray-800">ROLE_ADMIN</span> authority.
+            <p className="text-xs text-zinc-600 max-w-md mx-auto mt-2 leading-relaxed">
+              Customers cannot view or access records belonging to other customers. This section is restricted exclusively to administrators with verified <span className="font-mono font-bold text-zinc-800">ROLE_ADMIN</span> authority.
             </p>
           </div>
 
           <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <button
-              onClick={() => switchUser('admin')}
-              className="inline-flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm shadow-sm transition"
-            >
-              <ShieldCheck className="w-4 h-4" />
-              <span>Switch to Admin Mode</span>
-            </button>
+            {!isAuthenticated ? (
+              <button
+                onClick={login}
+                className="inline-flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-black hover:bg-zinc-800 text-white font-bold text-xs shadow-sm transition"
+              >
+                <LogIn className="w-4 h-4" />
+                <span>Sign In with Admin Account</span>
+              </button>
+            ) : (
+              <button
+                onClick={login}
+                className="inline-flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-zinc-900 hover:bg-black text-white font-bold text-xs shadow-sm transition"
+              >
+                <ShieldCheck className="w-4 h-4 text-amber-400" />
+                <span>Switch to Admin Account</span>
+              </button>
+            )}
 
             <Link
               href="/products"
-              className="inline-flex items-center space-x-1.5 px-5 py-2.5 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 font-semibold text-sm transition"
+              className="inline-flex items-center space-x-1.5 px-5 py-2.5 rounded-xl border border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-semibold text-xs transition"
             >
               <span>Back to Products</span>
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
         </div>
@@ -151,6 +164,13 @@ export default function CustomersPage() {
           </button>
         </div>
       </div>
+
+      {errorMessage && (
+        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-800 flex items-center">
+          <AlertCircle className="w-4 h-4 text-amber-600 mr-2 shrink-0" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
 
       {/* Customers Table */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">

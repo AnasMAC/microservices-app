@@ -1,68 +1,14 @@
-import { Product, Customer, Order, OrderStatus } from './types';
+import { Product, Customer, Order } from './types';
 
-const GATEWAY_URL = process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8888';
-const KEYCLOAK_URL = process.env.NEXT_PUBLIC_KEYCLOAK_URL || 'http://localhost:8080';
-
-// In-memory token storage (also saved to localStorage if available)
-let currentToken: string | null = null;
-
-export const setAuthToken = (token: string | null) => {
-  currentToken = token;
-  if (typeof window !== 'undefined') {
-    if (token) {
-      localStorage.setItem('auth_token', token);
-    } else {
-      localStorage.removeItem('auth_token');
-    }
-  }
-};
-
-export const getAuthToken = (): string | null => {
-  if (currentToken) return currentToken;
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('auth_token');
-  }
-  return null;
-};
-
-// Keycloak direct grant authentication
-export async function loginWithKeycloak(username: string, password: string): Promise<string> {
-  const params = new URLSearchParams();
-  params.append('client_id', 'nextjs-client');
-  params.append('grant_type', 'password');
-  params.append('username', username);
-  params.append('password', password);
-
-  const res = await fetch(`${KEYCLOAK_URL}/realms/microservices-realm/protocol/openid-connect/token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: params.toString(),
-  });
-
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Authentication failed (${res.status}): ${errorText}`);
-  }
-
-  const data = await res.json();
-  const token = data.access_token;
-  setAuthToken(token);
-  return token;
-}
-
-// Generic fetcher with automatic Bearer token injection
+// Generic fetcher calling the Next.js BFF proxy
+// The proxy catches the cookie, verifies it with Keycloak public keys (jose), and injects Bearer token
 async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const token = getAuthToken();
   const headers = new Headers(options.headers || {});
-  
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
-  }
   if (!headers.has('Content-Type') && options.body) {
     headers.set('Content-Type', 'application/json');
   }
 
-  const res = await fetch(`${GATEWAY_URL}${endpoint}`, {
+  const res = await fetch(`/api/proxy${endpoint}`, {
     ...options,
     headers,
   });
@@ -80,7 +26,6 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
     throw err;
   }
 
-  // Handle 204 No Content
   if (res.status === 204) {
     return null as T;
   }
@@ -92,7 +37,6 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
 // Inventory Service APIs
 // -------------------------------------------------------------
 export async function getProducts(): Promise<Product[]> {
-  // Spring Data REST /products?projection=fullProduct returns _embedded.products
   const data = await apiFetch<any>('/inventory-service/products?projection=fullProduct&size=50');
   if (data?._embedded?.products) {
     return data._embedded.products;
@@ -110,7 +54,7 @@ export async function createProduct(product: Omit<Product, 'id'>): Promise<Produ
 }
 
 // -------------------------------------------------------------
-// Customer Service APIs (ADMIN only)
+// Customer Service APIs (Only accessible to ADMIN)
 // -------------------------------------------------------------
 export async function getCustomers(): Promise<Customer[]> {
   const data = await apiFetch<any>('/customer-service/customers?projection=fullCustomer&size=50');

@@ -3,54 +3,62 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useApp, DEMO_USERS } from '../context/AppContext';
-import { ShoppingCart, Package, Users, ShoppingBag, ShieldCheck, User } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/AppContext';
+import {
+  ShoppingBag,
+  Package,
+  Users,
+  ShoppingCart,
+  ShieldCheck,
+  User,
+  LogOut,
+  LogIn,
+  UserPlus,
+} from 'lucide-react';
 
 export default function Navbar() {
   const pathname = usePathname();
-  const { activeUser, switchUser, cartCount, setIsCartOpen, authError } = useApp();
+  const { isAuthenticated, isLoading, user, login, register, logout, authError } = useAuth();
+  const { cartCount, setIsCartOpen } = useCart();
 
   const navLinks = [
-    { href: '/products', label: 'Products', icon: ShoppingBag },
-    { href: '/customers', label: 'Customers', icon: Users, adminOnly: true },
+    { href: '/products', label: 'Shop', icon: ShoppingBag },
     { href: '/orders', label: 'Orders', icon: Package },
+    ...(user?.isAdmin ? [{ href: '/customers', label: 'Customers', icon: Users, adminOnly: true }] : []),
   ];
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-gray-200 shadow-xs">
+    <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-zinc-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Brand */}
-          <div className="flex items-center space-x-3">
-            <Link href="/products" className="flex items-center space-x-2">
-              <div className="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-lg shadow-sm">
-                M
+          {/* Logo & Navigation */}
+          <div className="flex items-center space-x-6">
+            <Link href="/products" className="flex items-center space-x-2.5 group">
+              <div className="w-8 h-8 rounded-lg bg-black text-white flex items-center justify-center font-black text-sm tracking-tighter group-hover:bg-zinc-800 transition">
+                ▲
               </div>
-              <div>
-                <span className="font-extrabold text-xl text-gray-900 tracking-tight">MicroStore</span>
-                <span className="ml-1 text-xs px-1.5 py-0.5 rounded-sm bg-indigo-100 text-indigo-700 font-semibold uppercase">Cloud</span>
-              </div>
+              <span className="font-extrabold text-lg tracking-tight text-zinc-900">
+                MicroStore
+              </span>
             </Link>
 
-            {/* Navigation Links */}
-            <nav className="hidden md:flex ml-8 space-x-1">
+            <nav className="hidden md:flex items-center space-x-1">
               {navLinks.map((link) => {
-                const Icon = link.icon;
                 const isActive = pathname.startsWith(link.href);
                 return (
                   <Link
                     key={link.href}
                     href={link.href}
-                    className={`inline-flex items-center px-3.5 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    className={`inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
                       isActive
-                        ? 'bg-indigo-50 text-indigo-700'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                        ? 'bg-zinc-100 text-zinc-900'
+                        : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50'
                     }`}
                   >
-                    <Icon className="w-4 h-4 mr-1.5" />
                     {link.label}
                     {link.adminOnly && (
-                      <span className="ml-1.5 text-[10px] px-1.5 py-0.5 font-bold uppercase rounded-full bg-amber-100 text-amber-800">
+                      <span className="ml-1.5 text-[9px] px-1.5 py-0.2 font-black uppercase rounded bg-amber-100 text-amber-900 tracking-wider">
                         Admin
                       </span>
                     )}
@@ -60,43 +68,63 @@ export default function Navbar() {
             </nav>
           </div>
 
-          {/* Right side controls: Role switch & Cart */}
-          <div className="flex items-center space-x-4">
-            {/* User switcher */}
-            <div className="flex items-center space-x-2 bg-gray-100 p-1 rounded-xl text-xs font-medium">
-              {DEMO_USERS.map((user) => {
-                const isSelected = activeUser.username === user.username;
-                return (
-                  <button
-                    key={user.username}
-                    onClick={() => switchUser(user.username)}
-                    className={`flex items-center px-2.5 py-1.5 rounded-lg transition-all ${
-                      isSelected
-                        ? 'bg-white text-gray-900 shadow-xs font-semibold'
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    {user.role === 'ADMIN' ? (
-                      <ShieldCheck className="w-3.5 h-3.5 mr-1 text-amber-600" />
-                    ) : (
-                      <User className="w-3.5 h-3.5 mr-1 text-indigo-600" />
-                    )}
-                    <span>{user.username}</span>
-                    <span className="ml-1 text-[10px] text-gray-400">({user.role})</span>
-                  </button>
-                );
-              })}
-            </div>
+          {/* Right Controls: Keycloak Auth & Cart */}
+          <div className="flex items-center space-x-3">
+            {isLoading ? (
+              <div className="h-8 w-24 bg-zinc-100 animate-pulse rounded-xl" />
+            ) : isAuthenticated && user ? (
+              <div className="flex items-center space-x-2 bg-zinc-50 border border-zinc-200 px-3 py-1.5 rounded-xl text-xs">
+                {user.isAdmin ? (
+                  <ShieldCheck className="w-4 h-4 text-amber-600" />
+                ) : (
+                  <User className="w-4 h-4 text-zinc-700" />
+                )}
+                <div className="flex flex-col text-left">
+                  <span className="font-bold text-zinc-900 leading-tight">
+                    {user.name}
+                  </span>
+                  <span className="text-[10px] text-zinc-400 font-mono leading-tight">
+                    {user.isAdmin ? 'ROLE_ADMIN' : `Customer #${user.customerId}`}
+                  </span>
+                </div>
 
-            {/* Cart trigger */}
+                <button
+                  onClick={logout}
+                  className="ml-2 p-1 text-zinc-400 hover:text-rose-600 transition"
+                  title="Sign Out from Keycloak"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={login}
+                  className="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-bold text-zinc-800 hover:bg-zinc-100 rounded-xl transition"
+                >
+                  <LogIn className="w-3.5 h-3.5" />
+                  <span>Sign In</span>
+                </button>
+
+                <button
+                  onClick={register}
+                  className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-black hover:bg-zinc-800 rounded-xl shadow-xs transition"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>Create Account</span>
+                </button>
+              </div>
+            )}
+
+            {/* Cart Trigger */}
             <button
               onClick={() => setIsCartOpen(true)}
-              className="relative p-2.5 text-gray-700 hover:text-indigo-600 hover:bg-gray-100 rounded-xl transition"
+              className="relative p-2 text-zinc-800 hover:text-black hover:bg-zinc-100 rounded-xl transition"
               aria-label="Shopping Cart"
             >
               <ShoppingCart className="w-5 h-5" />
               {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-indigo-600 text-white font-bold text-xs rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
+                <span className="absolute -top-1 -right-1 bg-black text-white font-bold text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
                   {cartCount}
                 </span>
               )}
@@ -106,7 +134,7 @@ export default function Navbar() {
       </div>
 
       {authError && (
-        <div className="bg-amber-50 border-t border-amber-200 px-4 py-1.5 text-xs text-amber-800 text-center">
+        <div className="bg-amber-50 border-t border-amber-200 px-4 py-1 text-[11px] text-amber-800 text-center font-mono">
           ℹ️ {authError}
         </div>
       )}

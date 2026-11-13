@@ -3,27 +3,15 @@
 import React, { useState, useEffect } from 'react';
 import { Product } from '../../lib/types';
 import { getProducts, createProduct } from '../../lib/api';
-import { useApp } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
 import ProductCard from '../../components/ProductCard';
 import { Search, Plus, Sparkles, RefreshCw, X, Image as ImageIcon } from 'lucide-react';
 
-const FALLBACK_PRODUCTS: Product[] = [
-  { id: 1, name: 'MacBook Pro M3', price: 1999.0, imgUrl: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=600&q=80' },
-  { id: 2, name: 'iPhone 15 Pro', price: 1199.0, imgUrl: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=600&q=80' },
-  { id: 3, name: 'Sony WH-1000XM5', price: 399.0, imgUrl: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&q=80' },
-  { id: 4, name: 'Dell UltraSharp 4K', price: 649.0, imgUrl: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=600&q=80' },
-  { id: 5, name: 'Keychron Q1 Pro Keyboard', price: 199.0, imgUrl: 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=600&q=80' },
-  { id: 6, name: 'Logitech MX Master 3S', price: 99.0, imgUrl: 'https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?w=600&q=80' },
-  { id: 7, name: 'iPad Air M2', price: 599.0, imgUrl: 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=600&q=80' },
-  { id: 8, name: 'Apple Watch Ultra 2', price: 799.0, imgUrl: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&q=80' },
-  { id: 9, name: 'Bose QuietComfort 45', price: 329.0, imgUrl: 'https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=600&q=80' },
-  { id: 10, name: 'Canon EOS R6 Camera', price: 2499.0, imgUrl: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=600&q=80' },
-];
-
 export default function ProductsPage() {
-  const { activeUser } = useApp();
+  const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -36,12 +24,13 @@ export default function ProductsPage() {
 
   const fetchCatalog = async () => {
     setLoading(true);
+    setErrorMessage(null);
     try {
       const items = await getProducts();
-      setProducts(items.length > 0 ? items : FALLBACK_PRODUCTS);
-    } catch (err) {
-      console.warn('Gateway offline or unreachable, using curated seed products:', err);
-      setProducts(FALLBACK_PRODUCTS);
+      setProducts(items || []);
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Failed to connect to Inventory Service');
+      setProducts([]);
     } finally {
       setLoading(false);
     }
@@ -116,7 +105,7 @@ export default function ProductsPage() {
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
 
-          {activeUser.role === 'ADMIN' && (
+          {user?.isAdmin && (
             <button
               onClick={() => setIsModalOpen(true)}
               className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-sm transition"
