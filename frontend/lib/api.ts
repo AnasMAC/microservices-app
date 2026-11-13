@@ -37,7 +37,8 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
 // Inventory Service APIs
 // -------------------------------------------------------------
 export async function getProducts(): Promise<Product[]> {
-  const data = await apiFetch<any>('/inventory-service/products?projection=fullProduct&size=50');
+  const data = await apiFetch<any>('/products?projection=fullProduct&size=20');
+  console.log(data);
   if (data?._embedded?.products) {
     return data._embedded.products;
   }
@@ -47,7 +48,7 @@ export async function getProducts(): Promise<Product[]> {
 }
 
 export async function createProduct(product: Omit<Product, 'id'>): Promise<Product> {
-  return apiFetch<Product>('/inventory-service/products', {
+  return apiFetch<Product>('/products', {
     method: 'POST',
     body: JSON.stringify(product),
   });
@@ -57,7 +58,7 @@ export async function createProduct(product: Omit<Product, 'id'>): Promise<Produ
 // Customer Service APIs (Only accessible to ADMIN)
 // -------------------------------------------------------------
 export async function getCustomers(): Promise<Customer[]> {
-  const data = await apiFetch<any>('/customer-service/customers?projection=fullCustomer&size=50');
+  const data = await apiFetch<any>('/customers?projection=fullCustomer&size=50');
   if (data?._embedded?.customers) {
     return data._embedded.customers;
   }
@@ -67,7 +68,7 @@ export async function getCustomers(): Promise<Customer[]> {
 }
 
 export async function createCustomer(customer: Omit<Customer, 'id'>): Promise<Customer> {
-  return apiFetch<Customer>('/customer-service/customers', {
+  return apiFetch<Customer>('/customers', {
     method: 'POST',
     body: JSON.stringify(customer),
   });
@@ -77,7 +78,7 @@ export async function createCustomer(customer: Omit<Customer, 'id'>): Promise<Cu
 // Order Service APIs
 // -------------------------------------------------------------
 export async function getOrders(page: number = 0, size: number = 20): Promise<{ content: Order[]; totalPages: number }> {
-  const data = await apiFetch<any>(`/order-service/orders?page=${page}&size=${size}`);
+  const data = await apiFetch<any>(`/orders?page=${page}&size=${size}`);
   if (data?.content) {
     return {
       content: data.content,
@@ -91,11 +92,11 @@ export async function getOrders(page: number = 0, size: number = 20): Promise<{ 
 }
 
 export async function getOrderById(id: number): Promise<Order> {
-  return apiFetch<Order>(`/order-service/orders/${id}`);
+  return apiFetch<Order>(`/orders/${id}`);
 }
 
 export async function createOrder(customerId: number, productItems: { productId: number; quantity: number }[]): Promise<Order> {
-  return apiFetch<Order>('/order-service/orders', {
+  return apiFetch<Order>('/orders', {
     method: 'POST',
     body: JSON.stringify({
       customerId,
@@ -105,13 +106,13 @@ export async function createOrder(customerId: number, productItems: { productId:
 }
 
 export async function advanceOrderStatus(id: number): Promise<Order> {
-  return apiFetch<Order>(`/order-service/orders/${id}`, {
+  return apiFetch<Order>(`/orders/${id}`, {
     method: 'PUT',
   });
 }
 
 export async function cancelOrder(id: number): Promise<void> {
-  return apiFetch<void>(`/order-service/orders/${id}`, {
+  return apiFetch<void>(`/orders/${id}`, {
     method: 'DELETE',
   });
 }

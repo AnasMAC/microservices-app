@@ -66,6 +66,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  let kcInitPromise: Promise<boolean> | null = null;
+
   useEffect(() => {
     const kc = keycloak;
     if (!kc) {
@@ -73,11 +75,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    kc.init({
-      onLoad: 'check-sso',
-      flow: 'standard',
-      checkLoginIframe: false,
-    })
+    if (!kcInitPromise) {
+          kcInitPromise = kc.init({
+            flow: 'standard',
+            checkLoginIframe: false,
+          });
+        }
+
+
+    kcInitPromise
       .then((authenticated) => {
         setIsAuthenticated(authenticated);
         if (authenticated && kc.token) {
